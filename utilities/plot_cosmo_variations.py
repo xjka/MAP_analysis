@@ -3,7 +3,7 @@
 parameter variations, compared against the fiducial cosmology.
 
 Standalone script version of the "Emulator Slim" section at the end of
-acj/analysis.ipynb. c112 == c113 == c133 == c255 all share the same fiducial
+notebooks/analysis.ipynb. c112 == c113 == c133 == c255 all share the same fiducial
 cosmology (H0=67.36, omega_b=0.02237, omega_cdm=0.12, n_s=0.9649); every other
 cosmology index perturbs exactly one physical parameter away from that
 fiducial (confirmed by grepping abacus.par across every
@@ -37,7 +37,7 @@ for an expensive full read.
 
 Run directly, or via the accompanying ``run_cosmo_variations.pbs``::
 
-    python -m acj.plot_cosmo_variations --nworkers 8 --nthreads 26
+    python ~/map_analysis/utilities/plot_cosmo_variations.py --nworkers 8 --nthreads 26
 """
 
 import argparse
@@ -74,7 +74,7 @@ ZTOL = 5e-2
 RMIN, RMAX, NBINS = 2e-2, 40.0, 30
 
 # Where get_map_xi_cached persists its cache across runs -- analysis_data/ is
-# a symlink into /flare (see acj/analysis_data), so this survives a
+# a symlink into /flare (see map_analysis/analysis_data), so this survives a
 # killed/resubmitted PBS job. No raw maplog data is ever written here, only
 # the tiny per-(directory, redshift) xi_*.npz correlation-function results.
 CACHE_DIR = Path(__file__).parent / "analysis_data" / "maplog_cache"

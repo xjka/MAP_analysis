@@ -1,7 +1,7 @@
 """Time-resolved central / infalling / orbiting classification of every MAP in a simulation's maplogs
 (``read_forest`` -> ``scan_epochs`` -> optional row-matched label files). Run on a COMPUTE node:
 
-    python -m acj.run_group_scan SIM --out /flare/Abacus/ajohnson/group_scan/NAME [--min-mult 100] [--labels]
+    python ~/map_analysis/utilities/run_group_scan.py SIM --out /flare/Abacus/ajohnson/group_scan/NAME [--min-mult 100] [--labels]
 
 Always runs the sanity checks first (forest heads vs the dominant-branch reader on one file, the
 timeslice-vs-merger ordering assumption) and writes ``summary.json`` + ``diag.npz`` to ``--out``.

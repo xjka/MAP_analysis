@@ -12,7 +12,7 @@ independent).
 For every final-timeslice MAP with multiplicity >= ``--mult_min`` the merger
 rate is estimated as a Poisson process from its primary-branch mergers (the run
 of nodes from its head to the first Formation node; see
-``acj.utilities.min_merger_ratio_primary``): with N mergers at cosmic times
+``utilities.min_merger_ratio_primary``): with N mergers at cosmic times
 t_1 <= ... <= t_N there are N-1 separations whose sum is t_N - t_1, so
 
     rate = (N - 1) / (t_N - t_1)        [1/Gyr]
@@ -20,7 +20,7 @@ t_1 <= ... <= t_N there are N-1 separations whose sum is t_N - t_1, so
 MAPs with N < 2, or whose mergers all fall in one timestep (t_N == t_1), have no
 rate (NaN) and are left out of the rate histogram and scatter, but still count
 in the multiplicity histogram. Cosmic time comes from the header cosmology
-(same integral as ``acj.utilities._cosmic_time_curve``).
+(same integral as ``utilities._cosmic_time_curve``).
 
 A periodic reference run (``--reference``, default AbacusAurora_emulatormax_c200_ph310: same
 cosmology, MAP parameters, softening/spacing ratio and particle mass to 0.07%) is sampled the
@@ -35,7 +35,7 @@ figure from them without reading), figure in ``--image_dir``
 histogram, and rate vs multiplicity (2D histogram of the main run, with the median and 16-84%
 range in multiplicity bins for both runs).
 
-    mpiexec -n <nnodes> --ppn 1 python -m acj.merger_rate_subset SIMDIR --nfiles 64
+    mpiexec -n <nnodes> --ppn 1 python ~/map_analysis/utilities/merger_rate_subset.py SIMDIR --nfiles 64
 """
 import argparse
 import random
@@ -51,7 +51,7 @@ import numpy as np
 import asdf
 from abacusnbody.data.read_abacus import read_asdf
 
-from acj.utilities import _cosmic_time_curve, _history_from_stream
+from utilities import _cosmic_time_curve, _history_from_stream
 
 
 def _merger_rate_one_file(f, mult_min):

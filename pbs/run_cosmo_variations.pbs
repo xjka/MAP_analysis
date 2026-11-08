@@ -14,10 +14,10 @@
 
 # Correlation functions of the AbacusAurora "emulatorslim0p5" cosmological
 # parameter variations vs. the fiducial cosmology -- see
-# acj/plot_cosmo_variations.py (standalone version of the "Emulator Slim"
-# section at the end of acj/analysis.ipynb) for what this actually does.
+# utilities/plot_cosmo_variations.py (standalone version of the "Emulator Slim"
+# section at the end of notebooks/analysis.ipynb) for what this actually does.
 #
-# Two steps: acj/cache_cosmo_variations_xi.py does the heavy per-directory
+# Two steps: utilities/cache_cosmo_variations_xi.py does the heavy per-directory
 # ASDF read + pair counting, one directory at a time, and caches only the
 # tiny resulting correlation functions (never the raw maplog);
 # plot_cosmo_variations.py then just reads that cache and draws the figure.
@@ -33,11 +33,11 @@
 cd "$HOME/abacus"
 . env/aurora.sh
 # `. env/aurora.sh` loads Aurora's modules and activates abacus/.venv (uv-managed;
-# has mpi4py/numpy/matplotlib/scipy/scikit-learn/asdf per pyproject.toml). acj's
+# has mpi4py/numpy/matplotlib/scipy/scikit-learn/asdf per pyproject.toml). map_analysis's
 # own analysis deps -- astropy, pycorr, h5py -- must already be installed into
 # that same .venv (the one your analysis.ipynb kernel uses); if this job errors
 # on import, `uv pip install astropy pycorr h5py` into it first.
-cd "$HOME/acj-scripts/acj"
+cd "$HOME/map_analysis/utilities"
 
 NCORES=32 #$(nproc)
 export OMP_NUM_THREADS=$NCORES

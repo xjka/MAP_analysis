@@ -13,9 +13,9 @@
 # oe=merge stdout/stderr to stdout, eo=merge stderr/stdout to stderr, n=don't merge
 
 # Correlation functions of the AbacusAurora "varMAP" halo-finder parameter
-# variations vs. the fiducial MAP parameters -- see acj/plot_map_variations.py
+# variations vs. the fiducial MAP parameters -- see utilities/plot_map_variations.py
 # (standalone version of the commented-out draft in cell 10 of
-# acj/analysis.ipynb) for what this actually does. Reads 24 varMAP runs (the
+# notebooks/analysis.ipynb) for what this actually does. Reads 24 varMAP runs (the
 # single-parameter sweeps m041-m052 plus the two-parameter cross grids
 # m060-m071, used later for finite-difference derivative estimation) plus the
 # fiducial, so this does noticeably more pair-counting work than
@@ -31,11 +31,11 @@
 cd "$HOME/abacus"
 . env/aurora.sh
 # `. env/aurora.sh` loads Aurora's modules and activates abacus/.venv (uv-managed;
-# has mpi4py/numpy/matplotlib/scipy/scikit-learn/asdf per pyproject.toml). acj's
+# has mpi4py/numpy/matplotlib/scipy/scikit-learn/asdf per pyproject.toml). map_analysis's
 # own analysis deps -- astropy, pycorr, h5py -- must already be installed into
 # that same .venv (the one your analysis.ipynb kernel uses); if this job errors
 # on import, `uv pip install astropy pycorr h5py` into it first.
-cd "$HOME/acj-scripts/acj"
+cd "$HOME/map_analysis/utilities"
 
 NCORES=32 #$(nproc)
 export OMP_NUM_THREADS=$NCORES

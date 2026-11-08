@@ -6,15 +6,15 @@ For every simulation directory, produces four figures under ``--out_dir/Images/`
 1. ``map_xi_zevolution_<sim>.png`` -- MAP correlation function r^2 xi(r) at
    ``--redshifts`` (default 5, 4, 2, 0.2; each resolved to the nearest
    available MAP step), overlaid in one figure
-   (``acj.utilities.plot_map_xi_zevolution``).
+   (``utilities.plot_map_xi_zevolution``).
 2. ``mult_histogram_<sim>.png`` -- log-log histogram of the final-timeslice
-   MAP multiplicity (``acj.utilities.plot_mult_histogram``).
+   MAP multiplicity (``utilities.plot_mult_histogram``).
 3. ``velocities_<sim>.png`` -- mean formation/accretion/merger velocities vs.
    redshift, from that run's ``history.asdf``
-   (``acj.utilities.plot_vels``; skipped with a warning if that file is
+   (``utilities.plot_vels``; skipped with a warning if that file is
    missing -- gather it first with ``python -m abacus.post.history <dir>``).
 4. ``compare_map_fractions_<sim>.png`` -- N_MAP / N_DM vs. redshift
-   (``acj.utilities.compare_map_fractions``).
+   (``utilities.compare_map_fractions``).
 
 Simulation directories are split round-robin across MPI ranks
 (``sims[rank::size]``), so each rank reads/plots its own disjoint subset with
@@ -27,7 +27,7 @@ Run with, e.g. (2 MPI ranks per node, one per socket -- see the accompanying
 
     mpiexec -n $NTOTRANKS --ppn 2 --depth=$NTHREADS_PER_RANK --cpu-bind depth \\
             --mem-bind list:0:1 --env OMP_NUM_THREADS=$NTHREADS_PER_RANK \\
-            python -m acj.run_sim_diagnostics \\
+            python ~/map_analysis/utilities/run_sim_diagnostics.py \\
                 --sims_file sims.txt --out_dir /flare/Abacus/ajohnson/diagnostics \\
                 --redshifts 5 4 2 0.2 --nthreads $NTHREADS_PER_RANK
 """
@@ -55,10 +55,10 @@ import matplotlib.pyplot as plt
 # it straight from source and register it in sys.modules. Seeding the module
 # cache makes Python resolve `from abacus.param import InputFile` from cache
 # without ever consulting the meson-python finder -- both here and in
-# acj.utilities below, which imports it at module scope. No rebuild, no
+# utilities below, which imports it at module scope. No rebuild, no
 # editable build needed at all.
 if "abacus.param" not in sys.modules:
-    _if_src = Path(__file__).resolve().parents[1] / "py/abacus/param/input_file.py"
+    _if_src = Path(os.environ.get("ABACUS_REPO", Path.home() / "abacus")) / "py/abacus/param/input_file.py"
     _spec = importlib.util.spec_from_file_location("abacus.param.input_file", _if_src)
     _ifmod = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(_ifmod)
@@ -70,12 +70,8 @@ if "abacus.param" not in sys.modules:
     _abacus.param = _param
     sys.modules["abacus.param"] = _param
 
-try:
-    from .utilities import (read_maplog_dir, plot_map_xi_zevolution,
-                             plot_mult_histogram, plot_vels, compare_map_fractions)
-except ImportError:
-    from utilities import (read_maplog_dir, plot_map_xi_zevolution,
-                            plot_mult_histogram, plot_vels, compare_map_fractions)
+from utilities import (read_maplog_dir, plot_map_xi_zevolution,
+                       plot_mult_histogram, plot_vels, compare_map_fractions)
 
 
 def process_sim(simdir, redshifts, abundance, nthreads):

@@ -306,7 +306,7 @@ def read_maplog_dir(mdir, node_type='timeslice', compute_pids=False,
     compute_pids : bool
         The Formation-node lookup above plus hashing the 3-part pid into an
         int64 (see below) is only needed by callers that key/match on pid
-        (e.g. ``acj.match_maps_to_tng``); most callers here only ever use
+        (e.g. ``match_maps_to_tng``); most callers here only ever use
         ``pos``/``vel``/``mult``. That work is significant compute (a
         gather indexed by ``length`` per file, plus reading the ``pid`` and
         ``length`` columns themselves), so it defaults to off -- the
@@ -422,7 +422,7 @@ def read_maplog_dir(mdir, node_type='timeslice', compute_pids=False,
 
     if compute_pids:
         # hash the 3-part pid into a single int64 so it can be used as a dict
-        # key (e.g. acj.match_maps_to_tng keys dicts on maplog['pid'])
+        # key (e.g. match_maps_to_tng keys dicts on maplog['pid'])
         # each pid component is 16 bits (uint16 in maplog.cpp), so pack them at 0/16/32 bits: injective.
         # (An earlier version used shifts of 2**31/2**32, which overlap and collide; any pickle cache
         # written with those hashes is invalid.)
@@ -446,7 +446,7 @@ def read_maplog_dir_cached(mdir, cache_dir, node_type='timeslice', compute_pids=
     ``read_maplog_dir``'s cost is dominated by per-file ASDF decompression (see
     its docstring), which for AbacusAurora-scale maplogs can exceed a single
     batch job's walltime once a script reads more than a handful of directories
-    (e.g. ``acj/plot_cosmo_variations.py`` reading one per cosmology variation).
+    (e.g. ``utilities/plot_cosmo_variations.py`` reading one per cosmology variation).
     This wrapper pickles the *entire* dict ``read_maplog_dir`` returns to
     ``<cache_dir>/maplog_<mdir.name>_<node_type>[_pids].pkl`` the first time a
     directory is successfully read (pickle rather than ``.npz`` since the ASDF
@@ -1114,7 +1114,7 @@ def get_map_xi_cached(maplog, cache_key, timestep, r_edges, cache_dir, abundance
     Meant to checkpoint the pair-counting step alongside ``read_maplog_dir_cached``
     checkpointing the read step, so a batch script that computes several maplogs'
     correlation functions right after reading each one (e.g.
-    ``acj/plot_cosmo_variations.py``) doesn't lose that work either if the job is
+    ``utilities/plot_cosmo_variations.py``) doesn't lose that work either if the job is
     killed before it finishes every directory. Caches to ``<cache_dir>/xi_<cache_key>
     _t<timestep>_n<abundance>_m<mult_thresh>_p<max_p>_r<hash of r_edges>.npz``
     (write is atomic: written to a ``.tmp`` path, then renamed). ``max_p`` is

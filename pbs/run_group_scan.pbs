@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-# Time-resolved central/infalling/orbiting classification of every MAP (acj/run_group_scan.py).
+# Time-resolved central/infalling/orbiting classification of every MAP (utilities/run_group_scan.py).
 #
 #   qsub run_group_scan.pbs
 #   qsub -v MINMULT=50,EXTRA="--labels --save-scan" run_group_scan.pbs
@@ -22,6 +22,7 @@
 
 cd $HOME/abacus
 . env/aurora.sh
+cd $HOME/map_analysis   # relative Images/ and analysis_data/ paths resolve here
 
 SIMDIR=${SIMDIR:-/flare/Abacus/AbacusAurora/AbacusAurora_rockV2_c000_ph390_n1200}
 OUT=${OUT:-/flare/Abacus/ajohnson/group_scan/$(basename $SIMDIR)}
@@ -29,5 +30,5 @@ MINMULT=${MINMULT:-100}
 EXTRA=${EXTRA:-}
 
 echo "$(date): sim=$SIMDIR out=$OUT min_mult=$MINMULT extra='$EXTRA'"
-python -m acj.run_group_scan "$SIMDIR" --out "$OUT" --min-mult "$MINMULT" --workers 32 $EXTRA
+python utilities/run_group_scan.py "$SIMDIR" --out "$OUT" --min-mult "$MINMULT" --workers 32 $EXTRA
 echo "$(date): done"

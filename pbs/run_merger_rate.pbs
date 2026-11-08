@@ -1,17 +1,17 @@
 #!/bin/bash -l
 
 # Merger rates of final-timeslice MAPs from a random subset of ph410 maplog files, overlaid on the
-# periodic emulator reference (see acj/merger_rate_subset.py).
+# periodic emulator reference (see utilities/merger_rate_subset.py).
 #
 #   qsub run_merger_rate.pbs
 #   qsub -v NFILES=256,MULT_MIN=200 -l walltime=03:00:00 run_merger_rate.pbs
 #
 # Variables (qsub -v): NFILES=files sampled from ph410 (default 128), REF_NFILES=files from the reference
 #   (default = NFILES, capped at its 72), MULT_MIN=multiplicity floor (default 100), SEED, SIMDIR,
-#   EXTRA="..."=further acj.merger_rate_subset arguments (e.g. EXTRA="--no_reference").
+#   EXTRA="..."=further merger_rate_subset.py arguments (e.g. EXTRA="--no_reference").
 # Time, measured on 4 nodes: ~13 s per file, so 128 ph410 files + 72 reference files ~ 45 min.
 # Each run's arrays are written to analysis_data/merger_rate_subset/ as soon as it is read; the figure
-# goes to ~/abacus/Images. `python -m acj.merger_rate_subset <SIMDIR> --nfiles 1 --replot` redraws it.
+# goes to ~/map_analysis/Images. `python utilities/merger_rate_subset.py <SIMDIR> --nfiles 1 --replot` redraws it.
 
 #PBS -A Abacus
 #PBS -N merger_rate
@@ -28,6 +28,7 @@
 
 cd $HOME/abacus
 . env/aurora.sh
+cd $HOME/map_analysis   # relative Images/ and analysis_data/ paths resolve here
 
 SIMDIR=${SIMDIR:-/flare/Abacus/AbacusAurora/AbacusAurora_demiflag_c200_ph410}
 NFILES=${NFILES:-128}
@@ -42,7 +43,7 @@ if [ -n "${SEED:-}" ]; then SEED_ARG="--seed $SEED"; fi
 
 echo "$(date): $NNODES node(s); nfiles=$NFILES mult_min=$MULT_MIN sim=$SIMDIR extra='$EXTRA'"
 
-mpiexec -n "$NNODES" --ppn 1 python -m acj.merger_rate_subset "$SIMDIR" \
+mpiexec -n "$NNODES" --ppn 1 python utilities/merger_rate_subset.py "$SIMDIR" \
     --nfiles "$NFILES" --mult_min "$MULT_MIN" --nworkers 16 $REF_ARG $SEED_ARG $EXTRA
 
 echo "$(date): done"

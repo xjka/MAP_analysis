@@ -21,7 +21,7 @@ directly from a run script/.pbs file.
 
 Run with, e.g.::
 
-    python -m acj.match_maps_to_tng \
+    python ~/map_analysis/utilities/match_maps_to_tng.py \
         --basePath /flare/Abacus/ajohnson/TNG300/TNG300-2/output/ \
         --mapdir   /flare/Abacus/ajohnson/TNG300-3-Dark-Abacus_ne/ \
         --redshifts 0.2 0.5 1.0 \
@@ -48,15 +48,16 @@ import illustris_python as il
 # pure Python (io + shlex), so load it straight from source and register it in
 # sys.modules. Seeding the module cache makes Python resolve `from abacus.param
 # import InputFile` from cache without ever consulting the meson-python finder
-# -- both here and in acj.utilities below, which imports it at module scope.
+# -- both here and in utilities below, which imports it at module scope.
 # No rebuild, no editable build needed at all.
+import os
 import sys
 import types
 import importlib.util
 from pathlib import Path
 
 if "abacus.param" not in sys.modules:
-    _if_src = Path(__file__).resolve().parents[1] / "py/abacus/param/input_file.py"
+    _if_src = Path(os.environ.get("ABACUS_REPO", Path.home() / "abacus")) / "py/abacus/param/input_file.py"
     _spec = importlib.util.spec_from_file_location("abacus.param.input_file", _if_src)
     _ifmod = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(_ifmod)
@@ -68,20 +69,12 @@ if "abacus.param" not in sys.modules:
     _abacus.param = _param
     sys.modules["abacus.param"] = _param
 
-# Centralized maplog reader: change reading behavior in one place (acj.utilities)
-# and it propagates here. Relative import works under `python -m acj.match_maps_to_tng`;
-# fall back to an absolute import for standalone loads (e.g. the notebook doing
-# `from match_maps_to_tng import *` with acj/ on sys.path but no parent package).
-try:
-    from .utilities import (read_maplog_dir, get_threshold, get_sci_not, get_xi,
-                             get_available_tng_snapshots, map_step_for_redshift,
-                             _xi_plot_values, _ratio_suffix, read_gm_dict_for_maplog,
-                             map_satellite_mask, rel_vel_healpix_to_vector)
-except ImportError:
-    from utilities import (read_maplog_dir, get_threshold, get_sci_not, get_xi,
-                            get_available_tng_snapshots, map_step_for_redshift,
-                             _xi_plot_values, _ratio_suffix, read_gm_dict_for_maplog,
-                             map_satellite_mask, rel_vel_healpix_to_vector)
+# Centralized maplog reader: change reading behavior in one place (utilities)
+# and it propagates here.
+from utilities import (read_maplog_dir, get_threshold, get_sci_not, get_xi,
+                       get_available_tng_snapshots, map_step_for_redshift,
+                       _xi_plot_values, _ratio_suffix, read_gm_dict_for_maplog,
+                       map_satellite_mask, rel_vel_healpix_to_vector)
 
 
 # --------------------------------------------------------------------------- #
@@ -335,7 +328,7 @@ def make_HOD_plot(gm_dict_dir, maplog, basePath, redshifts, str_identifier="",
         by the *true* TNG group/FoF-halo id; ``rec.map_pids`` gives the MAPs
         matched to that halo).
     ``maplog`` : dict
-        The dict returned by ``acj.utilities.read_maplog_dir`` -- provides
+        The dict returned by ``utilities.read_maplog_dir`` -- provides
         ``header['BoxSize']`` plus the per-MAP multiplicity (``mult``) of whichever
         timeslice each requested redshift resolves to, used to impose the
         abundance cut. (``hm_dict`` no longer exists; the per-MAP masses that
@@ -1240,7 +1233,7 @@ def plot_map_halo_mass_frac(gm_tuples, Mp, basePath="/flare/Abacus/ajohnson/TNG3
                             save=False, str_identifier=''):
     """Compare central/total MAP "mass" relative to parent halo mass across runs.
 
-    Output analogue of ``acj.utilities.compare_map_fractions`` and
+    Output analogue of ``utilities.compare_map_fractions`` and
     ``compare_map_correlation_functions``: a column of subplots (one per tuple)
     sharing both axes, with the curves of each tuple drawn in shades of a
     single-color colormap chosen per tuple from ``cmaps`` (sampled on

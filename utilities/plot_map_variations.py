@@ -4,7 +4,7 @@ variations, compared against the fiducial MAP parameters, plus a cache of the
 raw correlation functions for later finite-difference derivative estimation.
 
 Standalone script version of the commented-out draft in cell 10 of
-acj/analysis.ipynb. Every AbacusAurora_varMAP_c000_ph350_m0* directory shares
+notebooks/analysis.ipynb. Every AbacusAurora_varMAP_c000_ph350_m0* directory shares
 the same fiducial cosmology (H0=67.36, omega_b=0.02237, omega_cdm=0.12,
 n_s=0.9649, w0=-1, wa=0, Omega_K=0 -- this is cosmology c000, identical to the
 "emulatorslim0p5" c112 fiducial used by plot_cosmo_variations.py); each
@@ -54,7 +54,7 @@ the varMAP runs) is comfortably in range and is requested by default.
 
 Run directly, or via the accompanying ``run_map_variations.pbs``::
 
-    python -m acj.plot_map_variations --nworkers 8 --nthreads 26
+    python ~/map_analysis/utilities/plot_map_variations.py --nworkers 8 --nthreads 26
 """
 
 import argparse
@@ -302,7 +302,7 @@ def plot_grid(runs, results, redshifts, cmaps, clo, chi, abundance,
     if save:
         # matches utilities.compare_correlation_functions: 'Images/' is the
         # repo-root directory (a symlink to /flare/Abacus/$USER/saves/),
-        # reached via '../Images' since this script runs with cwd=acj/
+        # reached via '../Images' since this script runs from map_analysis/utilities/
         outdir = Path('../Images')
         outdir.mkdir(exist_ok=True)
         fname = outdir / f'compare_correlation_functions_n{abundance:.2e}_{str_identifier}.png'

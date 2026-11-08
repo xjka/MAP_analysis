@@ -18,6 +18,7 @@ cd $HOME/abacus
 
 # Environment (also sourced from .bashrc, kept here so the job is self-contained)
 source env/aurora-1D.sh
+cd $HOME/map_analysis   # relative Images/ and analysis_data/ paths resolve here
 
 # ---- threading layout --------------------------------------------------
 # match_maps_to_tng runs as a single process, single node: the nearest-
@@ -45,11 +46,11 @@ MASS_MIN=1e3                                              # min halo stellar mas
 # REDSHIFTS off a single maplog read.
 for TST in "${TEST[@]}"; do
     MAPDIR=/flare/Abacus/ajohnson/${TST}/
-    OUT_DIR=$HOME/abacus/Images/${TST}_tng
+    OUT_DIR=$HOME/map_analysis/Images/${TST}_tng
 
     echo "==== Running test: $TST ===="
     mkdir -p "$OUT_DIR"
-    python -m acj.match_maps_to_tng \
+    python utilities/match_maps_to_tng.py \
         --mapdir    "$MAPDIR" \
         --basePath  "$BASEPATH" \
         --redshifts "${REDSHIFTS[@]}" \

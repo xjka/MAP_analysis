@@ -15,7 +15,7 @@
 
 # Batch MAP diagnostics (correlation-function redshift evolution, multiplicity
 # histogram, velocities, N_MAP/N_DM history) over many simulation directories at
-# once -- see acj/run_sim_diagnostics.py for what each rank actually does.
+# once -- see utilities/run_sim_diagnostics.py for what each rank actually does.
 #
 # Sims are split round-robin across MPI ranks; each rank is fully independent
 # (reads its own maplogs, writes its own figures under OUT_DIR/Images/), so this
@@ -37,9 +37,9 @@ REDSHIFTS="5 4 2 0.2"
 
 cd "$ABACUS_REPO"
 . env/aurora.sh
-cd "$HOME/acj-scripts"   # acj package lives here, outside the abacus repo
+cd $HOME/map_analysis   # relative Images/ and analysis_data/ paths resolve here
 # `. env/aurora.sh` loads Aurora's modules and activates abacus/.venv (uv-managed;
-# has mpi4py/numpy/matplotlib/scipy/scikit-learn/asdf per pyproject.toml). acj's
+# has mpi4py/numpy/matplotlib/scipy/scikit-learn/asdf per pyproject.toml). map_analysis's
 # own analysis deps -- astropy, illustris_python, pycorr, h5py -- must already be
 # installed into that same .venv (the one your analysis.ipynb kernel uses); if
 # this job errors on import, `uv pip install astropy illustris_python pycorr h5py`
@@ -63,6 +63,6 @@ echo "Output -> $OUT_DIR/Images/"
 
 mpiexec -n "$NTOTRANKS" --ppn "$MPI_PPN" --depth="$NDEPTH" --cpu-bind depth --mem-bind list:0:1 \
         --env OMP_NUM_THREADS="$NTHREADS_PER_RANK" --env OMP_PLACES=cores --env OMP_PROC_BIND=close \
-        python -m acj.run_sim_diagnostics \
+        python utilities/run_sim_diagnostics.py \
             --sims_file "$SIMS_FILE" --out_dir "$OUT_DIR" \
             --redshifts $REDSHIFTS --nthreads "$NTHREADS_PER_RANK"

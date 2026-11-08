@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Real-space MAP correlation function xi(r) in a random non-periodic box of a huge run.
 
-Reads the box with ``acj.box_maps`` (see there for how the box and its files are chosen),
+Reads the box with ``box_maps`` (see there for how the box and its files are chosen),
 abundance-matches the MAPs inside it (top ``abundance * S^3`` by multiplicity, the same rule
 as ``utilities.get_threshold``), counts pairs without periodic wrapping and saves only the
 results (npz + png) -- the MAPs themselves are never written.
@@ -36,7 +36,7 @@ once, and cached on disk -- ``<out_dir>/ref_xi_*.npz``, keyed on reference, abun
 scatter, and the ratio to the reference with the error on the mean. The K origins come from
 ``--seed`` (printed), so the set can be reproduced; ``--origin`` is for a single box only.
 
-    mpiexec -n 4 --ppn 1 python -m acj.box_xi SIMDIR --box_nzslices 3 [--seed S | --origin X Y Z] [--repeat K]
+    mpiexec -n 4 --ppn 1 python ~/map_analysis/utilities/box_xi.py SIMDIR --box_nzslices 3 [--seed S | --origin X Y Z] [--repeat K]
 """
 import argparse
 import os
@@ -53,7 +53,7 @@ import asdf
 from abacusnbody.data.read_abacus import read_asdf
 from pycorr import TwoPointCounter
 
-from acj.box_maps import choose_box, describe_box, final_timeslice_step, read_box_maps, read_decomposition
+from box_maps import choose_box, describe_box, final_timeslice_step, read_box_maps, read_decomposition
 
 _PC = dict(position_type='pos', bin_type='custom', engine='corrfunc')
 
@@ -162,7 +162,7 @@ def reference_xi(refdir, edges, abundance, safety, nworkers, nthreads, comm):
     print(f'reference {Path(refdir).name}: {len(files)} files read in {time.time() - t0:.0f} s; {len(pos):,} MAPs with '
           f'mult >= {thr} (L={L:g}, z={allr[0]["redshift"]:.3f})', flush=True)
     from astropy import units as u
-    from acj.utilities import get_xi
+    from utilities import get_xi
     t0 = time.time()
     twopt = get_xi(pos, edges, L * u.Mpc, max_p=np.inf, nthreads=nthreads)
     print(f'reference pair counts in {time.time() - t0:.1f} s', flush=True)

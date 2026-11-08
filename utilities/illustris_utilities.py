@@ -138,7 +138,7 @@ def make_map_tng_galaxy_dict_pos(halo_pos, halo_R, halo_N, maps_tup, BoxSize, zf
         if rank==root:
             
             #workaround for the fact that the pickling environment had a different name for illustris_utilities
-            import acj.illustris_utilities as illutil
+            import illustris_utilities as illutil
             import sys
             sys.modules['illustris_utilities'] = illutil
             

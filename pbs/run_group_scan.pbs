@@ -22,7 +22,7 @@
 
 cd $HOME/abacus
 . env/aurora.sh
-cd $HOME/map_analysis   # relative Images/ and analysis_data/ paths resolve here
+cd $HOME/MAP_analysis   # relative Images/ and analysis_data/ paths resolve here
 
 SIMDIR=${SIMDIR:-/flare/Abacus/AbacusAurora/AbacusAurora_rockV2_c000_ph390_n1200}
 OUT=${OUT:-/flare/Abacus/ajohnson/group_scan/$(basename $SIMDIR)}

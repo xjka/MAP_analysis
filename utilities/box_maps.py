@@ -30,8 +30,8 @@ MAP positions in the files. ``--x_slab_offset`` overrides this (added to the hea
 Every file read is also checked against its predicted x and z range, and the run aborts if
 any MAP lies outside.
 
-    mpiexec -n <nnodes> --ppn 1 python ~/map_analysis/utilities/box_maps.py SIMDIR --box_nzslices 3 --mult_min 1000
-    python ~/map_analysis/utilities/box_maps.py SIMDIR --box_nzslices 3 --dry_run       # plan only, reads no data
+    mpiexec -n <nnodes> --ppn 1 python ~/MAP_analysis/utilities/box_maps.py SIMDIR --box_nzslices 3 --mult_min 1000
+    python ~/MAP_analysis/utilities/box_maps.py SIMDIR --box_nzslices 3 --dry_run       # plan only, reads no data
 """
 import argparse
 import re

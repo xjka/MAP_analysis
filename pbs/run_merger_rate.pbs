@@ -11,7 +11,7 @@
 #   EXTRA="..."=further merger_rate_subset.py arguments (e.g. EXTRA="--no_reference").
 # Time, measured on 4 nodes: ~13 s per file, so 128 ph410 files + 72 reference files ~ 45 min.
 # Each run's arrays are written to analysis_data/merger_rate_subset/ as soon as it is read; the figure
-# goes to ~/map_analysis/Images. `python utilities/merger_rate_subset.py <SIMDIR> --nfiles 1 --replot` redraws it.
+# goes to ~/MAP_analysis/Images. `python utilities/merger_rate_subset.py <SIMDIR> --nfiles 1 --replot` redraws it.
 
 #PBS -A Abacus
 #PBS -N merger_rate
@@ -28,7 +28,7 @@
 
 cd $HOME/abacus
 . env/aurora.sh
-cd $HOME/map_analysis   # relative Images/ and analysis_data/ paths resolve here
+cd $HOME/MAP_analysis   # relative Images/ and analysis_data/ paths resolve here
 
 SIMDIR=${SIMDIR:-/flare/Abacus/AbacusAurora/AbacusAurora_demiflag_c200_ph410}
 NFILES=${NFILES:-128}

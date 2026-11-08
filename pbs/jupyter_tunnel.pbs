@@ -48,5 +48,5 @@ else
          "but it will not be reachable through the tunnel." >&2
 fi
 
-cd $HOME/map_analysis
+cd $HOME/MAP_analysis
 jupyter lab --no-browser --port ${JUPYTER_PORT}

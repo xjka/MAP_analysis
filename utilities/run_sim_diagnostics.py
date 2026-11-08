@@ -27,7 +27,7 @@ Run with, e.g. (2 MPI ranks per node, one per socket -- see the accompanying
 
     mpiexec -n $NTOTRANKS --ppn 2 --depth=$NTHREADS_PER_RANK --cpu-bind depth \\
             --mem-bind list:0:1 --env OMP_NUM_THREADS=$NTHREADS_PER_RANK \\
-            python ~/map_analysis/utilities/run_sim_diagnostics.py \\
+            python ~/MAP_analysis/utilities/run_sim_diagnostics.py \\
                 --sims_file sims.txt --out_dir /flare/Abacus/ajohnson/diagnostics \\
                 --redshifts 5 4 2 0.2 --nthreads $NTHREADS_PER_RANK
 """

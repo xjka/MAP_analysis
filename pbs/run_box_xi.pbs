@@ -28,7 +28,7 @@
 
 cd $HOME/abacus
 . env/aurora.sh
-cd $HOME/map_analysis   # relative Images/ and analysis_data/ paths resolve here
+cd $HOME/MAP_analysis   # relative Images/ and analysis_data/ paths resolve here
 
 SIMDIR=${SIMDIR:-/flare/Abacus/AbacusAurora/AbacusAurora_demiflag_c200_ph410}
 NZ=${NZ:-3}

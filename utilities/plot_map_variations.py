@@ -54,7 +54,7 @@ the varMAP runs) is comfortably in range and is requested by default.
 
 Run directly, or via the accompanying ``run_map_variations.pbs``::
 
-    python ~/map_analysis/utilities/plot_map_variations.py --nworkers 8 --nthreads 26
+    python ~/MAP_analysis/utilities/plot_map_variations.py --nworkers 8 --nthreads 26
 """
 
 import argparse
@@ -302,7 +302,7 @@ def plot_grid(runs, results, redshifts, cmaps, clo, chi, abundance,
     if save:
         # matches utilities.compare_correlation_functions: 'Images/' is the
         # repo-root directory (a symlink to /flare/Abacus/$USER/saves/),
-        # reached via '../Images' since this script runs from map_analysis/utilities/
+        # reached via '../Images' since this script runs from MAP_analysis/utilities/
         outdir = Path('../Images')
         outdir.mkdir(exist_ok=True)
         fname = outdir / f'compare_correlation_functions_n{abundance:.2e}_{str_identifier}.png'

@@ -21,7 +21,7 @@ directly from a run script/.pbs file.
 
 Run with, e.g.::
 
-    python ~/map_analysis/utilities/match_maps_to_tng.py \
+    python ~/MAP_analysis/utilities/match_maps_to_tng.py \
         --basePath /flare/Abacus/ajohnson/TNG300/TNG300-2/output/ \
         --mapdir   /flare/Abacus/ajohnson/TNG300-3-Dark-Abacus_ne/ \
         --redshifts 0.2 0.5 1.0 \

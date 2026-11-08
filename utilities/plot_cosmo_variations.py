@@ -37,7 +37,7 @@ for an expensive full read.
 
 Run directly, or via the accompanying ``run_cosmo_variations.pbs``::
 
-    python ~/map_analysis/utilities/plot_cosmo_variations.py --nworkers 8 --nthreads 26
+    python ~/MAP_analysis/utilities/plot_cosmo_variations.py --nworkers 8 --nthreads 26
 """
 
 import argparse
@@ -74,7 +74,7 @@ ZTOL = 5e-2
 RMIN, RMAX, NBINS = 2e-2, 40.0, 30
 
 # Where get_map_xi_cached persists its cache across runs -- analysis_data/ is
-# a symlink into /flare (see map_analysis/analysis_data), so this survives a
+# a symlink into /flare (see MAP_analysis/analysis_data), so this survives a
 # killed/resubmitted PBS job. No raw maplog data is ever written here, only
 # the tiny per-(directory, redshift) xi_*.npz correlation-function results.
 CACHE_DIR = Path(__file__).parent / "analysis_data" / "maplog_cache"

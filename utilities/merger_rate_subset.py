@@ -35,7 +35,7 @@ figure from them without reading), figure in ``--image_dir``
 histogram, and rate vs multiplicity (2D histogram of the main run, with the median and 16-84%
 range in multiplicity bins for both runs).
 
-    mpiexec -n <nnodes> --ppn 1 python ~/map_analysis/utilities/merger_rate_subset.py SIMDIR --nfiles 64
+    mpiexec -n <nnodes> --ppn 1 python ~/MAP_analysis/utilities/merger_rate_subset.py SIMDIR --nfiles 64
 """
 import argparse
 import random

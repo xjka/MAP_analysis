@@ -36,7 +36,7 @@ once, and cached on disk -- ``<out_dir>/ref_xi_*.npz``, keyed on reference, abun
 scatter, and the ratio to the reference with the error on the mean. The K origins come from
 ``--seed`` (printed), so the set can be reproduced; ``--origin`` is for a single box only.
 
-    mpiexec -n 4 --ppn 1 python ~/map_analysis/utilities/box_xi.py SIMDIR --box_nzslices 3 [--seed S | --origin X Y Z] [--repeat K]
+    mpiexec -n 4 --ppn 1 python ~/MAP_analysis/utilities/box_xi.py SIMDIR --box_nzslices 3 [--seed S | --origin X Y Z] [--repeat K]
 """
 import argparse
 import os

@@ -69,7 +69,7 @@ from pathlib import Path
 
 import numpy as np
 
-# utilities.py lives in ../utilities (map_analysis repo layout).
+# utilities.py lives in ../utilities (MAP_analysis repo layout).
 UTILITIES_DIR = Path(__file__).resolve().parents[1] / "utilities"
 if str(UTILITIES_DIR) not in sys.path:
     sys.path.insert(0, str(UTILITIES_DIR))

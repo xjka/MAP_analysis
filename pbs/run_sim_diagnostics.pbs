@@ -37,9 +37,9 @@ REDSHIFTS="5 4 2 0.2"
 
 cd "$ABACUS_REPO"
 . env/aurora.sh
-cd $HOME/map_analysis   # relative Images/ and analysis_data/ paths resolve here
+cd $HOME/MAP_analysis   # relative Images/ and analysis_data/ paths resolve here
 # `. env/aurora.sh` loads Aurora's modules and activates abacus/.venv (uv-managed;
-# has mpi4py/numpy/matplotlib/scipy/scikit-learn/asdf per pyproject.toml). map_analysis's
+# has mpi4py/numpy/matplotlib/scipy/scikit-learn/asdf per pyproject.toml). MAP_analysis's
 # own analysis deps -- astropy, illustris_python, pycorr, h5py -- must already be
 # installed into that same .venv (the one your analysis.ipynb kernel uses); if
 # this job errors on import, `uv pip install astropy illustris_python pycorr h5py`

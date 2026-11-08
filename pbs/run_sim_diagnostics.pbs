@@ -1,0 +1,68 @@
+#!/bin/bash -l
+#PBS -N sim_diagnostics
+#PBS -A Abacus
+# 2 ranks/node, one per socket (Aurora: 2 sockets x ~52 cores; ncpus=102/ompthreads=51
+# leaves 2 cores/node free, matching subprojects/zeldovich_mpi/test_N2048/rank0-loads).
+# Set select=<N_nodes> to however many nodes you want this batch spread over --
+# more nodes just means more ranks, each getting a smaller slice of sims.txt.
+#PBS -l select=4:ncpus=102:mpiprocs=2:ompthreads=51
+#PBS -l place=scatter
+#PBS -l walltime=01:00:00
+#PBS -q debug-scaling
+#PBS -l filesystems=home:flare
+#PBS -j oe
+#PBS -o sim_diagnostics.out
+
+# Batch MAP diagnostics (correlation-function redshift evolution, multiplicity
+# histogram, velocities, N_MAP/N_DM history) over many simulation directories at
+# once -- see acj/run_sim_diagnostics.py for what each rank actually does.
+#
+# Sims are split round-robin across MPI ranks; each rank is fully independent
+# (reads its own maplogs, writes its own figures under OUT_DIR/Images/), so this
+# is just a plain process-per-socket fan-out over independent directories, not a
+# domain-decomposed MPI code -- the same "2 ranks/node, one per socket" idiom
+# used by the zeldovich_mpi IC-generation test scripts, repurposed for a plain
+# Python/mpi4py analysis script instead of a C executable.
+#
+# Edit ABACUS_REPO / SIMS_FILE / OUT_DIR / REDSHIFTS below, and ncpus/ompthreads
+# above, to match your node type and job. sims.txt is a plain text file, one
+# simulation directory per line (lines starting with # are ignored).
+
+set -euo pipefail
+
+ABACUS_REPO=/home/ajohnson/abacus
+SIMS_FILE="$PBS_O_WORKDIR/sims.txt"
+OUT_DIR="$PBS_O_WORKDIR/diagnostics_out"
+REDSHIFTS="5 4 2 0.2"
+
+cd "$ABACUS_REPO"
+. env/aurora.sh
+cd "$HOME/acj-scripts"   # acj package lives here, outside the abacus repo
+# `. env/aurora.sh` loads Aurora's modules and activates abacus/.venv (uv-managed;
+# has mpi4py/numpy/matplotlib/scipy/scikit-learn/asdf per pyproject.toml). acj's
+# own analysis deps -- astropy, illustris_python, pycorr, h5py -- must already be
+# installed into that same .venv (the one your analysis.ipynb kernel uses); if
+# this job errors on import, `uv pip install astropy illustris_python pycorr h5py`
+# into it first.
+
+# Must match #PBS -l select's mpiprocs/ompthreads above.
+NRANKS_PER_NODE=2
+NTHREADS_PER_RANK=51
+NDEPTH=$NTHREADS_PER_RANK
+MPI_PPN=$NRANKS_PER_NODE
+# PBS_NODEFILE has one line per MPI rank, not per node -- this already counts
+# nodes * mpiprocs.
+NTOTRANKS=$(wc -l < "$PBS_NODEFILE")
+
+export OMP_NUM_THREADS=$NTHREADS_PER_RANK OMP_PLACES=cores OMP_PROC_BIND=close
+
+mkdir -p "$OUT_DIR"
+
+echo "Running $NTOTRANKS rank(s) ($MPI_PPN/node, $NTHREADS_PER_RANK threads/rank) over sims listed in $SIMS_FILE"
+echo "Output -> $OUT_DIR/Images/"
+
+mpiexec -n "$NTOTRANKS" --ppn "$MPI_PPN" --depth="$NDEPTH" --cpu-bind depth --mem-bind list:0:1 \
+        --env OMP_NUM_THREADS="$NTHREADS_PER_RANK" --env OMP_PLACES=cores --env OMP_PROC_BIND=close \
+        python -m acj.run_sim_diagnostics \
+            --sims_file "$SIMS_FILE" --out_dir "$OUT_DIR" \
+            --redshifts $REDSHIFTS --nthreads "$NTHREADS_PER_RANK"

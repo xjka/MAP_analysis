@@ -1,0 +1,59 @@
+#!/bin/bash -l
+
+#PBS -A Abacus
+#PBS -N match_maps
+#PBS -k doe
+#PBS -q debug
+#PBS -j oe
+#PBS -l select=1
+#PBS -l walltime=00:10:00
+#PBS -l filesystems=home_fs:flare_fs
+#PBS -l place=scatter
+#PBS -o analysis_data/match_maps_tuning.out
+
+# oe=merge stdout/stderr to stdout, eo=merge stderr/stdout to stderr, n=don't merge
+
+
+cd $HOME/abacus
+
+# Environment (also sourced from .bashrc, kept here so the job is self-contained)
+source env/aurora-1D.sh
+
+# ---- threading layout --------------------------------------------------
+# match_maps_to_tng runs as a single process, single node: the nearest-
+# neighbour search (compare_pos) is numba @njit(parallel=True), i.e.
+# thread-parallel over every core via prange, so there's no MPI layer and
+# nothing to scatter/gather -- just give it every core on the node.
+NCORES=$(nproc)
+
+export NUMBA_NUM_THREADS=$NCORES
+export OMP_NUM_THREADS=$NCORES
+
+echo "Running single-process on $NCORES threads"
+
+#---- Inputs -----------------------------------------------------------------
+TEST=("TNG300-3-Dark-Abacus2")
+BASEPATH=/flare/Abacus/ajohnson/TNG300/TNG300-2/output/   # TNG (hydro) catalog
+REDSHIFTS=(5 2 1 0.2)                                           # target redshift(s)
+MASS_MIN=1e3                                              # min halo stellar mass [Msun]
+
+
+#---- Launch -----------------------------------------------------------------
+#ninja -C /home/ajohnson/abacus/build/cp313 python_bindings
+
+# Run once per test in the TEST list; each call matches every redshift in
+# REDSHIFTS off a single maplog read.
+for TST in "${TEST[@]}"; do
+    MAPDIR=/flare/Abacus/ajohnson/${TST}/
+    OUT_DIR=$HOME/abacus/Images/${TST}_tng
+
+    echo "==== Running test: $TST ===="
+    mkdir -p "$OUT_DIR"
+    python -m acj.match_maps_to_tng \
+        --mapdir    "$MAPDIR" \
+        --basePath  "$BASEPATH" \
+        --redshifts "${REDSHIFTS[@]}" \
+        --mass_min  "$MASS_MIN" \
+        --out_dir   "$OUT_DIR" \
+        --recalc
+done

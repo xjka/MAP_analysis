@@ -1,0 +1,33 @@
+#!/bin/bash -l
+
+# Time-resolved central/infalling/orbiting classification of every MAP (acj/run_group_scan.py).
+#
+#   qsub run_group_scan.pbs
+#   qsub -v MINMULT=50,EXTRA="--labels --save-scan" run_group_scan.pbs
+#
+# Variables (qsub -v): SIMDIR  OUT (default /flare/Abacus/ajohnson/group_scan/<sim name>)  MINMULT  EXTRA
+# Memory: ~(tracks) x (epochs) x ~15 B for the scan outputs plus the forest arrays (~40 B per track-epoch);
+# a node has plenty for the n1200 test sim (12 maplog files, 4.8 GB).
+
+#PBS -A Abacus
+#PBS -N group_scan
+#PBS -k doe
+#PBS -q capacity
+#PBS -j oe
+#PBS -l select=1
+#PBS -l walltime=01:00:00
+#PBS -l filesystems=home_fs:flare_fs
+#PBS -l place=scatter
+#PBS -o analysis_data/group_scan.out
+
+cd $HOME/abacus
+. env/aurora.sh
+
+SIMDIR=${SIMDIR:-/flare/Abacus/AbacusAurora/AbacusAurora_rockV2_c000_ph390_n1200}
+OUT=${OUT:-/flare/Abacus/ajohnson/group_scan/$(basename $SIMDIR)}
+MINMULT=${MINMULT:-100}
+EXTRA=${EXTRA:-}
+
+echo "$(date): sim=$SIMDIR out=$OUT min_mult=$MINMULT extra='$EXTRA'"
+python -m acj.run_group_scan "$SIMDIR" --out "$OUT" --min-mult "$MINMULT" --workers 32 $EXTRA
+echo "$(date): done"

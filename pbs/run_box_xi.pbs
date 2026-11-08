@@ -1,0 +1,48 @@
+#!/bin/bash -l
+
+# Box-to-box averaged MAP correlation function in the ph410 simulation (see acj/box_xi.py).
+#
+#   qsub run_box_xi.pbs
+#   qsub -v NZ=4,REPEAT=16,SEED=7 run_box_xi.pbs         # override any of the variables below
+#   qsub -l select=8 -l walltime=06:00:00 -v REPEAT=32 run_box_xi.pbs
+#
+# Variables (qsub -v):  NZ=box side in z-slices (142.86 Mpc/h each)   REPEAT=number of random boxes
+#   SEED=seed of the random origins (default: fresh entropy, printed in the log)
+#   SIMDIR=simulation directory   EXTRA="..."=any further acj.box_xi arguments, e.g. EXTRA="--abundance 2e-3"
+# Time: ~4 min of file reading per 3-slice box (more for larger boxes) plus the one-off reference read
+# (~11 min) if analysis_data/box_xi/ref_xi_*.npz does not exist for these settings.
+# One MPI rank per node; the file reading and pair counting use every core of each node.
+
+#PBS -A Abacus
+#PBS -N box_xi
+#PBS -k doe
+#PBS -q capacity
+#PBS -j oe
+#PBS -l select=4
+#PBS -l walltime=02:00:00
+#PBS -l filesystems=home_fs:flare_fs
+#PBS -l place=scatter
+#PBS -o analysis_data/box_xi.out
+
+# oe=merge stdout/stderr to stdout, eo=merge stderr/stdout to stderr, n=don't merge
+
+cd $HOME/abacus
+. env/aurora.sh
+
+SIMDIR=${SIMDIR:-/flare/Abacus/AbacusAurora/AbacusAurora_demiflag_c200_ph410}
+NZ=${NZ:-3}
+REPEAT=${REPEAT:-8}
+EXTRA=${EXTRA:-}
+
+NNODES=$(sort -u "$PBS_NODEFILE" | wc -l)
+SEED_ARG=""
+if [ -n "${SEED:-}" ]; then SEED_ARG="--seed $SEED"; fi
+
+echo "$(date): $NNODES node(s); box_nzslices=$NZ repeat=$REPEAT seed=${SEED:-random} sim=$SIMDIR extra='$EXTRA'"
+
+mpiexec -n "$NNODES" --ppn 1 python -m acj.box_xi "$SIMDIR" \
+    --box_nzslices "$NZ" --repeat "$REPEAT" $SEED_ARG $EXTRA
+
+echo "$(date): done"
+
+# qsub -v NZ=9,REPEAT=4  -l walltime=03:00:00 run_box_xi.pbs

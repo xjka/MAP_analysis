@@ -1,0 +1,5 @@
+# Notebooks are kept out of version control (large, output-laden).
+notebooks/*
+
+__pycache__/
+.ipynb_checkpoints/

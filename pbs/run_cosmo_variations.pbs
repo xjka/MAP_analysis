@@ -1,0 +1,53 @@
+#!/bin/bash -l
+#PBS -A Abacus
+#PBS -N cosmo_variations
+#PBS -k doe
+#PBS -q next-eval
+#PBS -j oe
+#PBS -l select=1
+#PBS -l walltime=6:00:00
+#PBS -l filesystems=home_fs:flare_fs
+#PBS -l place=scatter
+#PBS -o run_cosmo_variations.out
+
+# oe=merge stdout/stderr to stdout, eo=merge stderr/stdout to stderr, n=don't merge
+
+# Correlation functions of the AbacusAurora "emulatorslim0p5" cosmological
+# parameter variations vs. the fiducial cosmology -- see
+# acj/plot_cosmo_variations.py (standalone version of the "Emulator Slim"
+# section at the end of acj/analysis.ipynb) for what this actually does.
+#
+# Two steps: acj/cache_cosmo_variations_xi.py does the heavy per-directory
+# ASDF read + pair counting, one directory at a time, and caches only the
+# tiny resulting correlation functions (never the raw maplog);
+# plot_cosmo_variations.py then just reads that cache and draws the figure.
+# Split out so a run that dies partway through the heavy step (this is what
+# a BrokenProcessPool from an OOM'd worker looks like) can be resubmitted and
+# pick up where it left off, without the plotting step ever needing to hold
+# more than one directory's data in memory at a time.
+#
+# Single process, single node: read_maplog_dir's internal ASDF decompression
+# is a ProcessPoolExecutor pool (--nworkers) and get_xi's pair counting is
+# thread-parallel (--nthreads); there's no MPI layer to scatter/gather.
+
+cd "$HOME/abacus"
+. env/aurora.sh
+# `. env/aurora.sh` loads Aurora's modules and activates abacus/.venv (uv-managed;
+# has mpi4py/numpy/matplotlib/scipy/scikit-learn/asdf per pyproject.toml). acj's
+# own analysis deps -- astropy, pycorr, h5py -- must already be installed into
+# that same .venv (the one your analysis.ipynb kernel uses); if this job errors
+# on import, `uv pip install astropy pycorr h5py` into it first.
+cd "$HOME/acj-scripts/acj"
+
+NCORES=32 #$(nproc)
+export OMP_NUM_THREADS=$NCORES
+
+echo "Running single-process on $NCORES cores"
+
+python cache_cosmo_variations_xi.py \
+    --nworkers "$NCORES" \
+    --nthreads "$NCORES"
+
+python plot_cosmo_variations.py \
+    --nworkers "$NCORES" \
+    --nthreads "$NCORES"

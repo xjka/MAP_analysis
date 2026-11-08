@@ -1,0 +1,369 @@
+diff --git a/acj/box_maps.py b/acj/box_maps.py
+index 120e9d37..77c82674 100644
+--- a/acj/box_maps.py
++++ b/acj/box_maps.py
+@@ -164,6 +164,12 @@ def describe_box(d, box):
+     return '\n'.join(lines)
+ 
+ 
++def final_timeslice_step(f):
++    """Timestep of a maplog file's final TimeSlice nodes: the run's last step, ``FullStepNumber`` in the header."""
++    with asdf.open(f, lazy_load=True, validate_checksums=False) as af:
++        return int(af.tree['header']['FullStepNumber'])
++
++
+ def _read_box_file(key, f, d, box, mult_min, top_density=None, top_safety=1.25):
+     """Final-timeslice MAPs with mult >= mult_min of one file that lie in the box, in box coords.
+ 
+@@ -174,20 +180,20 @@ def _read_box_file(key, f, d, box, mult_min, top_density=None, top_safety=1.25):
+     threshold ends up above every file's local cut; the caller checks that with the returned
+     ``local_cut``."""
+     asdf.get_config().validate_on_read = False
+-    tbl = read_asdf(f, load=['pos', 'mult', 'control', 'timestep'])
+-    ctrl = np.asarray(tbl['control'])
+-    ts = np.asarray(tbl['timestep'])
+-    head = ctrl % 4 == 3
+-    final = int(ts[head].max())
+-    m = head & (ts == final) & (np.asarray(tbl['mult']) >= mult_min)
++    final = final_timeslice_step(f)
++    tbl = read_asdf(f, load=['pos', 'mult'], select={'node_type': 'timeslice', 'timestep': final})
++    if len(tbl) == 0:
++        raise RuntimeError(f'{f}: no TimeSlice nodes at the final step {final}')
++    mult_all = np.asarray(tbl['mult'])
++    m = mult_all >= mult_min
+     local_cut = mult_min
+     if top_density is not None:
+         v_file = d.x_range(key[1])[1] * d.L * d.z_range(key[0])[1]
+         k = int(np.ceil(top_safety * top_density * v_file))
+-        mm = np.asarray(tbl['mult'])[m]
++        mm = mult_all[m]
+         if k < len(mm):
+             local_cut = max(local_cut, int(np.partition(mm, len(mm) - k)[len(mm) - k]))
+-            m &= np.asarray(tbl['mult']) >= local_cut
++            m &= mult_all >= local_cut
+     pos = np.asarray(tbl['pos'])[m].astype(np.float64)
+     mult = np.asarray(tbl['mult'])[m].astype(np.int32)
+ 
+diff --git a/acj/box_xi.py b/acj/box_xi.py
+index 10ddc0ae..bd2cb8a5 100644
+--- a/acj/box_xi.py
++++ b/acj/box_xi.py
+@@ -53,7 +53,7 @@ import asdf
+ from abacusnbody.data.read_abacus import read_asdf
+ from pycorr import TwoPointCounter
+ 
+-from acj.box_maps import choose_box, describe_box, read_box_maps, read_decomposition
++from acj.box_maps import choose_box, describe_box, final_timeslice_step, read_box_maps, read_decomposition
+ 
+ _PC = dict(position_type='pos', bin_type='custom', engine='corrfunc')
+ 
+@@ -108,14 +108,12 @@ _REF_DEFAULT = '/flare/Abacus/AbacusAurora/AbacusAurora_emulatormax_c200_ph310'
+ def _read_reference_file(f, top_k):
+     """Final-timeslice MAPs of one reference maplog file, pre-cut to its ``top_k`` highest multiplicities."""
+     asdf.get_config().validate_on_read = False
+-    tbl = read_asdf(f, load=['pos', 'mult', 'control', 'timestep'])
+-    ctrl = np.asarray(tbl['control'])
+-    ts = np.asarray(tbl['timestep'])
+-    head = ctrl % 4 == 3
+-    final = int(ts[head].max())
+-    m = head & (ts == final)
+-    mult = np.asarray(tbl['mult'])[m]
+-    pos = np.asarray(tbl['pos'])[m]
++    final = final_timeslice_step(f)
++    tbl = read_asdf(f, load=['pos', 'mult'], select={'node_type': 'timeslice', 'timestep': final})
++    if len(tbl) == 0:
++        raise RuntimeError(f'{f}: no TimeSlice nodes at the final step {final}')
++    mult = np.asarray(tbl['mult'])
++    pos = np.asarray(tbl['pos'])
+     cut = 0
+     if top_k < len(mult):
+         cut = int(np.partition(mult, len(mult) - top_k)[len(mult) - top_k])
+diff --git a/acj/utilities.py b/acj/utilities.py
+index 28d2f693..b6cfeeee 100644
+--- a/acj/utilities.py
++++ b/acj/utilities.py
+@@ -1,4 +1,5 @@
+ import os
++import multiprocessing
+ import hashlib
+ import pickle
+ from glob import glob
+@@ -38,7 +39,16 @@ import h5py as h5
+ import asdf
+ from abacusnbody.data.read_abacus import read_asdf
+ from abacusnbody.data.output_particle import rel_vel_healpix_lookup
+-from abacus.param import InputFile
++
++
++def InputFile(*args, **kwargs):
++    """Lazy ``abacus.param.InputFile``. Not imported at module level because
++    ``abacus`` is a meson-python editable install whose import runs ``ninja``
++    on the build dir: ``read_maplog_dir``'s forkserver workers re-import this
++    module, so several workers would run ninja concurrently in the same build
++    dir and race on ``.ninja_log`` -> ImportError -> BrokenProcessPool."""
++    from abacus.param import InputFile as _InputFile
++    return _InputFile(*args, **kwargs)
+ 
+ 
+ #Useful constants:
+@@ -77,6 +87,7 @@ def get_threshold(mass,BoxSize,guess=1e2,abundance=[5.01e-3,]):
+ 
+ 
+ _NODE_TYPE_BITS = {'timeslice': 3, 'lightcone': 2}
++_NODE_TYPE_NAMES = {bits: name for name, bits in _NODE_TYPE_BITS.items()}
+ 
+ _MAP_PARAM_KEYS = (
+     'Map_bform_ips', 'Map_baccrete_ips', 'Map_bmerge_proper',
+@@ -196,7 +207,7 @@ def dominant_formation_pid(node_type, pid, length=None, check=True):
+     return dominant_pid, next_formation_idx
+ 
+ 
+-def _read_one_maplog_file(f, load_keys, keys, node_bits, compute_pids):
++def _read_one_maplog_file(f, load_keys, keys, node_bits, compute_pids, timesteps=None):
+     """Read and mask one MapLog file; run in a worker process by
+     ``read_maplog_dir``. Module-level (not a closure) so it can be pickled
+     and sent to a ``ProcessPoolExecutor`` worker."""
+@@ -204,22 +215,37 @@ def _read_one_maplog_file(f, load_keys, keys, node_bits, compute_pids):
+     # from the parent if the pool ever uses spawn/forkserver instead of fork.
+     asdf.get_config().validate_on_read = False
+ 
++    if not compute_pids:
++        # Only the selected modality's rows are needed, so have read_asdf pick them before
++        # unpacking rather than unpacking every node and masking afterwards.
++        select = {'node_type': _NODE_TYPE_NAMES[node_bits]}
++        if timesteps is not None:
++            select['timestep'] = np.asarray(timesteps)
++        tbl = read_asdf(f, load=keys, select=select)
++        result = {key: np.asarray(tbl[key]) for key in keys}
++        result['header'] = tbl.meta
++        return result
++
++    # The pid walk needs the whole node stream (the Formation nodes after each head), so
++    # there is nothing to select up front here.
+     tbl = read_asdf(f, load=load_keys)
+-    mask = np.asarray(tbl['control']) % 4 == node_bits
++    control = np.asarray(tbl['control'])
++    mask = control % 4 == node_bits
++    if timesteps is not None:
++        mask &= np.isin(control >> 2, np.asarray(timesteps))
+     result = {key: np.asarray(tbl[key])[mask] for key in keys}
+     result['header'] = tbl.meta
+-    if compute_pids:
+-        head = np.flatnonzero(mask)
+-        dominant_pid, _ = dominant_formation_pid(
+-            tbl['node_type'], np.asarray(tbl['pid']), np.asarray(tbl['length']))
+-        result['pid'] = dominant_pid[head]
++    head = np.flatnonzero(mask)
++    dominant_pid, _ = dominant_formation_pid(
++        tbl['node_type'], np.asarray(tbl['pid']), np.asarray(tbl['length']))
++    result['pid'] = dominant_pid[head]
+     return result
+ 
+ 
+ def read_maplog_dir(mdir, node_type='timeslice', compute_pids=False,
+                     keys = ['pos', 'vel', 'mult', 'control', 'timestep', 'node_type',
+                             'density', 'vel_disp', 'rel_vel', 'rel_vel_healpix'],
+-                    nworkers=16):
++                    nworkers=16, redshifts=None):
+     """Read a directory's MapLog ASDF files into one dict of head-node
+     arrays for one node modality.
+ 
+@@ -228,9 +254,8 @@ def read_maplog_dir(mdir, node_type='timeslice', compute_pids=False,
+     own ``maplog_z<z>_<rank_z>_<rank_x>.asdf`` file; the glob below picks up
+     every such file under ``mdir`` regardless of the ``z`` baked into its
+     name, and concatenates all of them into the returned dict. There's no
+-    I/O to save by selecting a subset up front -- each file has to be
+-    decompressed in full to read even one column -- so this just reads and
+-    keeps everything. The full ASDF header (from the first file) is attached
++    I/O to save by selecting a subset of columns up front -- each file has to be
++    decompressed in full to read even one column. The full ASDF header (from the first file) is attached
+     unchanged as ``maplog['header']`` -- e.g. ``maplog['header']['BoxSize']``,
+     ``maplog['header']['ParticleMassHMsun']`` -- and the per-step
+     ``Step_to_Z`` redshift list is also read from there. The ``Map_*`` keys in
+@@ -253,7 +278,10 @@ def read_maplog_dir(mdir, node_type='timeslice', compute_pids=False,
+     file in memory at once (as a full ``astropy.table.vstack`` over all
+     files would) -- profiling showed that final concatenation step is only
+     ~2-3% of total wall time regardless, so there's little to gain from
+-    changing it; the per-file ``read_asdf`` call is what dominates. The
++    changing it; the per-file ``read_asdf`` call is what dominates. Without
++    ``compute_pids`` each file is read with ``read_asdf(select={'node_type': ...})``,
++    so the other modalities' rows are never unpacked (the file is still decompressed
++    in full). The
+     returned dict keeps every step/redshift present for the chosen
+     ``node_type``; a caller
+     wanting one particular epoch filters ``maplog['step']``/
+@@ -286,6 +314,16 @@ def read_maplog_dir(mdir, node_type='timeslice', compute_pids=False,
+         ``compute_pids`` is explicitly set True. When False (the default),
+         ``maplog`` has no ``'pid'`` key.
+ 
++    redshifts : iterable of float, optional
++        If given, keep only the epoch (timestep) nearest each of these redshifts,
++        instead of every epoch present. The unwanted rows are dropped before
++        unpacking (``read_asdf`` ``select``), so memory scales with the rows kept.
++        The nearest epoch is resolved from a one-file probe read of ``timestep``
++        only. ``maplog['step']``/``['redshift']`` then list just the kept
++        epochs, so ``map_step_for_redshift`` still resolves to the nearest one.
++        Combine with a short ``keys`` (e.g. ``['pos', 'mult', 'control']``) to
++        read only what ``get_map_xi`` needs.
++
+     nworkers : int
+         Each file's read-and-mask (and, if ``compute_pids``, the pid walk)
+         is independent of every other file, so files are read concurrently
+@@ -343,9 +381,26 @@ def read_maplog_dir(mdir, node_type='timeslice', compute_pids=False,
+ 
+     all_keys = keys + ['pid'] if compute_pids else keys
+ 
++    sel_steps = None
++    if redshifts is not None:
++        # Probe: which timesteps exist for this modality, and the step -> z table.
++        probe = read_asdf(files[0], load=('timestep',),
++                          select={'node_type': _NODE_TYPE_NAMES[node_bits]})
++        present = np.unique(np.asarray(probe['timestep'])).astype(np.int64)
++        z_present = np.asarray(probe.meta['Step_to_Z'])[present - 1]
++        sel_steps = np.unique([present[np.argmin(np.abs(z_present - z))]
++                               for z in redshifts])
++        del probe
++
+     worker = partial(_read_one_maplog_file, load_keys=load_keys, keys=worker_keys,
+-                      node_bits=node_bits, compute_pids=compute_pids)
+-    with ProcessPoolExecutor(max_workers=nworkers) as ex:
++                      node_bits=node_bits, compute_pids=compute_pids,
++                      timesteps=sel_steps)
++    # forkserver, not the default fork: the redshift probe above decompresses
++    # in this process, which starts blosc2's thread pool, and a fork()ed worker
++    # inherits that pool's state without its threads -- its first blosc2
++    # decompress then waits forever on a condvar (hung jobs 9040160, 9044870).
++    with ProcessPoolExecutor(max_workers=nworkers,
++                             mp_context=multiprocessing.get_context("forkserver")) as ex:
+         # .map preserves input order regardless of completion order, so
+         # results[0] is always files[0] -- matters below, since the header
+         # and step -> redshift table are only ever taken from the first file.
+@@ -457,8 +512,8 @@ def _count_heads_one_file(f, target_step):
+     """Number of timeslice head nodes at ``target_step`` in one MapLog file (worker for
+     ``read_maplog_histories``)."""
+     asdf.get_config().validate_on_read = False
+-    tbl = read_asdf(f, load=['control'])
+-    return int(np.count_nonzero(np.asarray(tbl['control']) == 4 * int(target_step) + 3))
++    tbl = read_asdf(f, load=['mult'], select={'node_type': 'timeslice', 'timestep': int(target_step)})
++    return len(tbl)
+ 
+ 
+ def _read_histories_one_file(f, sel_local, target_step, n_back):
+@@ -1556,6 +1611,7 @@ def compare_correlation_functions(maplog_tuples, redshifts, labels=None,
+                                    clo=0., chi=0.7, panel_size=(4, 3),
+                                    save=False, str_identifier='',
+                                    map_default=None, default_label='',
++                                   maplog_default_npz=None, maplog_default_r_edges=None,
+                                    plot_ratio=False, xscale='log',
+                                    xi_cache_dir=None, xi_cache_keys=None,
+                                    default_cache_key=None,
+@@ -1674,6 +1730,25 @@ def compare_correlation_functions(maplog_tuples, redshifts, labels=None,
+         Its curve is computed once per column and reused across rows.
+     default_label : str
+         Legend label for the ``map_default`` gray dashed curve.
++    maplog_default_npz : str or path-like, optional
++        Alternative to ``map_default``: path to a target ``.npz`` written by
++        ``prod/ParamTuning*/optimize_maps.py::reference_target`` (keys
++        ``redshifts``, ``xi_<i>``, ``err_<i>``). Its curves are drawn as the gray
++        dashed reference exactly as ``map_default`` would be, but are *loaded*
++        rather than recomputed -- so the huge reference maplog never has to be
++        read, and the plot shows the very curves the tuning loss used. Each
++        column takes the stored redshift nearest to it (``ztol`` warning as
++        usual). Mutually exclusive with ``map_default``; cannot be combined with
++        ``weighted`` (the stored curves are unweighted).
++        The stored curves live on the optimizer's separation bins, so those bins
++        are used for *every* curve (``rmin``/``rmax``/``nbins`` are ignored): they
++        are read from the npz's ``r_edges`` key (written by current
++        ``reference_target``), or else from ``maplog_default_r_edges``.
++    maplog_default_r_edges : array-like, optional
++        Bin edges (Mpc/h) the npz was computed on, for npz files written before
++        ``r_edges`` was stored, e.g. ``np.linspace(R_MIN, R_MAX, N_R_BINS)``
++        (or ``np.logspace(...)``). Must match the settings the file was
++        built with. Ignored if the npz contains ``r_edges``.
+     show_redshift_in_legend : bool
+         If True (default), every legend entry carries its ``z=...`` redshift.
+         If False the redshift is dropped (it is still in the column titles), so
+@@ -1756,7 +1831,26 @@ def compare_correlation_functions(maplog_tuples, redshifts, labels=None,
+     if row_names is not None:
+         assert len(row_names) == nrows, "row_names must have one entry per maplog tuple (row)"
+ 
+-    r_edges = np.logspace(np.log10(rmin), np.log10(rmax), nbins + 1)
++    if maplog_default_npz is not None:
++        if map_default is not None:
++            raise ValueError("pass either map_default or maplog_default_npz, not both")
++        if weighted:
++            raise ValueError("weighted cannot be combined with maplog_default_npz (stored curves are unweighted)")
++    have_default = map_default is not None or maplog_default_npz is not None
++
++    npz_default = None
++    if maplog_default_npz is not None:
++        npz_default = dict(np.load(maplog_default_npz))
++        npz_edges = npz_default.get('r_edges', maplog_default_r_edges)
++        if npz_edges is None:
++            raise ValueError(
++                "{} has no 'r_edges' (older file); pass maplog_default_r_edges, e.g. "
++                "np.linspace(R_MIN, R_MAX, N_R_BINS), matching how it was built".format(maplog_default_npz))
++        r_edges = np.asarray(npz_edges, dtype=float)
++        print("maplog_default_npz: using its {} separation bins ({:g}-{:g} Mpc/h) for all "
++              "curves (rmin/rmax/nbins ignored)".format(len(r_edges) - 1, r_edges[0], r_edges[-1]))
++    else:
++        r_edges = np.logspace(np.log10(rmin), np.log10(rmax), nbins + 1)
+     r       = r_edges[:-1] + np.diff(r_edges) / 2.0
+ 
+     # optional reference-catalog comparisons: each is (key, legend label, curve
+@@ -1772,7 +1866,7 @@ def compare_correlation_functions(maplog_tuples, redshifts, labels=None,
+             raise ValueError("plot_flamingo=True requires flamingo_snapshots")
+         overlay_specs.append(('flamingo', flamingo_label, dict(color='black', ls=':')))
+ 
+-    if plot_ratio and not overlay_specs and map_default is None:
++    if plot_ratio and not overlay_specs and not have_default:
+         raise ValueError("plot_ratio=True requires plot_tng2, plot_tng1, plot_flamingo, or "
+                          "map_default to provide the reference correlation function")
+     # ratio reference: the TNG comparison with the highest plot_tng* value (ties
+@@ -1834,7 +1928,21 @@ def compare_correlation_functions(maplog_tuples, redshifts, labels=None,
+     # compared against. Its correlation function depends only on the column
+     # redshift, so compute it once per column here and reuse it across all rows.
+     default_xi = default_poisson = default_z = None
+-    if map_default is not None:
++    if npz_default is not None:
++        default_xi      = [None] * ncols
++        default_poisson = [None] * ncols
++        default_z       = [None] * ncols
++        zs_npz = np.atleast_1d(npz_default['redshifts']).astype(float)
++        for col, z_req in enumerate(redshifts):
++            j = int(np.argmin(np.abs(zs_npz - z_req)))
++            if abs(zs_npz[j] - z_req) > ztol:
++                print(
++                    "WARNING: requested redshift {:.3f} has no maplog_default_npz entry within "
++                    "{:g}; using nearest available z={:.4f}".format(z_req, ztol, zs_npz[j]))
++            default_z[col]       = float(zs_npz[j])
++            default_xi[col]      = np.asarray(npz_default[f'xi_{j}'])
++            default_poisson[col] = np.asarray(npz_default[f'err_{j}'])
++    elif map_default is not None:
+         default_xi      = [None] * ncols
+         default_poisson = [None] * ncols
+         default_z       = [None] * ncols
+@@ -1933,7 +2041,7 @@ def compare_correlation_functions(maplog_tuples, redshifts, labels=None,
+                 ref = None
+ 
+             # gray dashed reference, precomputed once per column
+-            if map_default is not None:
++            if have_default:
+                 default_curve_label = _legend_label(default_label, default_z[col], col)
+                 if ratio_uses_default:
+                     # ratio-to-itself is exactly 1 everywhere: draw a flat
+@@ -5627,11 +5735,10 @@ def _formation_nodes_one_file(f):
+     Formation nodes of a file are every MAP birth that file's ranks logged.
+     """
+     asdf.get_config().validate_on_read = False
+-    tbl = read_asdf(f, load=['pos', 'node_type', 'timestep'])
+-    form = np.asarray(tbl['node_type']) == 0
++    tbl = read_asdf(f, load=['pos', 'timestep'], select={'node_type': 'formation'})
+     step_to_z = np.asarray(tbl.meta['Step_to_Z'])
+-    ts = np.asarray(tbl['timestep'])[form].astype(np.int64)
+-    return {'pos': np.asarray(tbl['pos'])[form].astype(np.float32),
++    ts = np.asarray(tbl['timestep']).astype(np.int64)
++    return {'pos': np.asarray(tbl['pos']).astype(np.float32),
+             'redshift': step_to_z[ts - 1].astype(np.float32),
+             'header': tbl.meta}
+ 

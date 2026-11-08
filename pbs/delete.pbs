@@ -1,0 +1,27 @@
+#!/bin/bash -l
+
+#PBS -A Abacus
+#PBS -N ajohnson_debug
+#PBS -k doe
+#PBS -q debug
+#PBS -j oe
+#PBS -l select=1
+#PBS -l walltime=01:00:00
+#PBS -l filesystems=home_fs:flare_fs
+#PBS -l place=scatter 
+
+
+# oe=merge stdout/stderr to stdout, eo=merge stderr/stdout to stderr, n=don't merge
+
+set -u
+
+for d in /flare/Abacus/ajohnson/Tuning2 /flare/Abacus/ajohnson/Tuning; do
+    # A failed cd would leave us in $HOME (bash -l), so never fall through to rm.
+    cd "$d" || { echo "cd $d failed" >&2; exit 1; }
+    [ "$(pwd -P)" = "$(readlink -f "$d")" ] || { echo "not in $d" >&2; exit 1; }
+    echo "$(date) start $d"
+    find . -mindepth 1 -maxdepth 1 -print0 | xargs -0 -P 64 -n 1 rm -rf
+    cd / && rmdir "$d"
+    echo "$(date) done $d"
+done
+

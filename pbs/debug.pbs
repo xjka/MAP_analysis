@@ -1,0 +1,20 @@
+#!/bin/bash -l
+
+#PBS -A Abacus
+#PBS -N ajohnson_debug
+#PBS -k doe
+#PBS -q debug
+#PBS -j oe
+#PBS -l select=1
+#PBS -l walltime=01:00:00
+#PBS -l filesystems=home_fs:flare_fs
+#PBS -l place=scatter 
+
+
+# oe=merge stdout/stderr to stdout, eo=merge stderr/stdout to stderr, n=don't merge
+
+if [ $# -gt 0 ]; then
+    echo "Usage: qsub $0"
+    exit 1
+fi
+

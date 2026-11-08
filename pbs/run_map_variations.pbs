@@ -1,0 +1,47 @@
+#!/bin/bash -l
+#PBS -A Abacus
+#PBS -N map_variations
+#PBS -k doe
+#PBS -q next-eval
+#PBS -j oe
+#PBS -l select=1
+#PBS -l walltime=06:00:00
+#PBS -l filesystems=home_fs:flare_fs
+#PBS -l place=scatter
+#PBS -o run_map_variations.out
+
+# oe=merge stdout/stderr to stdout, eo=merge stderr/stdout to stderr, n=don't merge
+
+# Correlation functions of the AbacusAurora "varMAP" halo-finder parameter
+# variations vs. the fiducial MAP parameters -- see acj/plot_map_variations.py
+# (standalone version of the commented-out draft in cell 10 of
+# acj/analysis.ipynb) for what this actually does. Reads 24 varMAP runs (the
+# single-parameter sweeps m041-m052 plus the two-parameter cross grids
+# m060-m071, used later for finite-difference derivative estimation) plus the
+# fiducial, so this does noticeably more pair-counting work than
+# run_cosmo_variations.pbs -- hence the longer walltime. Also writes
+# analysis_data/map_variations_xi_n<abundance>.npz + .json, a cache of every
+# run's raw (r, xi, poisson) so the derivative estimation doesn't need to
+# re-read maplogs or re-run pair counts.
+#
+# Single process, single node: read_maplog_dir's internal ASDF decompression
+# is a ProcessPoolExecutor pool (--nworkers) and get_xi's pair counting is
+# thread-parallel (--nthreads); there's no MPI layer to scatter/gather.
+
+cd "$HOME/abacus"
+. env/aurora.sh
+# `. env/aurora.sh` loads Aurora's modules and activates abacus/.venv (uv-managed;
+# has mpi4py/numpy/matplotlib/scipy/scikit-learn/asdf per pyproject.toml). acj's
+# own analysis deps -- astropy, pycorr, h5py -- must already be installed into
+# that same .venv (the one your analysis.ipynb kernel uses); if this job errors
+# on import, `uv pip install astropy pycorr h5py` into it first.
+cd "$HOME/acj-scripts/acj"
+
+NCORES=32 #$(nproc)
+export OMP_NUM_THREADS=$NCORES
+
+echo "Running single-process on $NCORES cores"
+
+python plot_map_variations.py \
+    --nworkers "$NCORES" \
+    --nthreads "$NCORES"

@@ -1,0 +1,51 @@
+#!/bin/bash -l
+
+#invocation command:
+#qsub -v LOGIN_HOST=$(hostname -s) jupyter_tunnel.pbs
+
+#PBS -A Abacus
+#PBS -N jupyter_tunnel
+#PBS -k doe
+#PBS -q capacity
+#PBS -j oe
+#PBS -l select=1
+#PBS -l walltime=03:00:00
+#PBS -l filesystems=home_fs:flare_fs
+#PBS -l place=scatter
+#PBS -o analysis_data/jupyter_tunnel.out
+
+# oe=merge stdout/stderr to stdout, eo=merge stderr/stdout to stderr, n=don't merge
+
+
+if [ $# -gt 0 ]; then
+    echo "Usage: qsub $0"
+    exit 1
+fi
+
+cd $HOME/abacus
+. env/aurora.sh
+
+JUPYTER_PORT=23572
+LOGIN_NODE_PORT=23571
+
+# aurora.alcf.anl.gov (the round-robin alias) is NOT reachable from compute
+# nodes -- must be submitted with the specific login/UAN node you're actually
+# connected to from your laptop, e.g.:
+#   qsub -v LOGIN_HOST=$(hostname -s) start_jupyter_tunnel.pbs
+if [ -z "${LOGIN_HOST}" ]; then
+    echo "ERROR: LOGIN_HOST is not set. Submit with:" >&2
+    echo "  qsub -v LOGIN_HOST=\$(hostname -s) $0" >&2
+    exit 1
+fi
+
+echo "Compute node: $(hostname)"
+echo "Tunneling back to: ajohnson@${LOGIN_HOST}"
+
+if ssh -o ConnectTimeout=10 -N -f -R ${LOGIN_NODE_PORT}:localhost:${JUPYTER_PORT} "ajohnson@${LOGIN_HOST}"; then
+    echo "Reverse tunnel established: ${LOGIN_HOST}:${LOGIN_NODE_PORT} -> localhost:${JUPYTER_PORT}"
+else
+    echo "ERROR: reverse tunnel to ${LOGIN_HOST} failed (exit $?). Jupyter will still start," \
+         "but it will not be reachable through the tunnel." >&2
+fi
+
+jupyter lab --no-browser --port ${JUPYTER_PORT}

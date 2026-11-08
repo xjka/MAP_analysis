@@ -1,86 +1,61 @@
 #!/usr/bin/env python
-"""Recompute optimize_maps_history.json losses under the current loss_config().
+"""Recompute history losses under the current loss_config().
 
 You normally don't need this: optimize_maps.py tags every history record with
-the loss_config() (R_EDGES, TARGET_DATASET + source, COMPARE_REDSHIFTS,
-ABUNDANCE, LOSS_VERSION) it was computed under, and at startup recomputes any
+the loss_config() (bin edges, target dataset + source, compare_redshifts,
+abundance, LOSS_VERSION) it was computed under, and at startup recomputes any
 record whose config differs from the current one (History.refresh_stale).
 
-Like optimize_maps.py, the loss settings come from the environment at import
-time (R_SPACING, R_MIN, R_MAX, N_R_BINS, TARGET_DATASET, TNG_BASEPATH, ...),
-so export the same variables as run.pbs before running this.
+The loss settings come from the same TOML config optimize_maps.py uses, so
+pass the campaign's config:
 
-Uses:
-  * refresh without starting a tuning run (in place):
-        python recompute_losses.py /flare/Abacus/$USER/Tuning_png
-  * recompute a backup snapshot into a new file, leaving the original intact:
-        python recompute_losses.py --input .../optimize_maps_history.json.bak \\
+  * refresh the config's current-spec history in place, without starting a
+    tuning run:
+        python recompute_losses.py --config tuning.toml
+  * recompute some other history file (another spec's, a pre-spec history,
+    a backup) into a new file, leaving the original intact:
+        python recompute_losses.py --config tuning.toml \\
+            --history .../optimize_maps_history.json.bak \\
             --output .../optimize_maps_history_recomputed.json
-  * --force: recompute every record even if its loss_config already matches
-    (e.g. after editing compute_loss() without bumping LOSS_VERSION).
+  * --force: recompute every scored record even if its loss_config already
+    matches (e.g. after editing compute_loss() without bumping LOSS_VERSION).
 
-With no positional dirs or --input, defaults to $OPTIMIZE_MAPS_DIR.
+Run dirs are found at $ABACUS_OUTPUT_ROOT/<sim_name>, so any history file can
+be recomputed regardless of where it lives.
 """
 
 from __future__ import annotations
 
-import os
+import argparse
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from optimize_maps import History, reference_target, TARGET_DATASET  # noqa: E402
-
-
-def recompute(history_path: Path, output_dir: Path, out_path: Path | None = None,
-              force: bool = False) -> None:
-    """Refresh stale (or, with ``force``, all) losses in ``history_path``.
-
-    ``output_dir`` holds the <TARGET_DATASET>_target.npz cache (reused only if
-    its loss_config matches) and anchors run dirs at ``output_dir.parent /
-    sim_name``. Writes to ``out_path`` (default: in place).
-    """
-    if not history_path.exists():
-        print(f"[recompute] no history at {history_path}, skipping")
-        return
-    target = reference_target(cache_path=output_dir / f"{TARGET_DATASET}_target.npz")
-    history = History(history_path)
-    # refresh_stale resolves run dirs against history.path.parent.parent; point
-    # it at output_dir in case the history file lives elsewhere.
-    history.path = output_dir / history_path.name
-    history.refresh_stale(target, force=force, out_path=out_path or history_path)
+from optimize_maps import History, configure, load_config, reference_target  # noqa: E402
 
 
 def main():
-    import argparse
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("dirs", nargs="*",
-                   help="OUTPUT_DIR(s) whose optimize_maps_history.json to refresh in place "
-                        "(ignored if --input is given)")
-    p.add_argument("--input", default=None,
-                   help="refresh this specific history JSON file instead")
-    p.add_argument("--output-dir", default=None,
-                   help="OUTPUT_DIR for the target cache and sim_name run dirs, "
-                        "when --input is given (default: --input's parent directory)")
+    p.add_argument("--config", required=True,
+                   help="tuning TOML config defining the loss (and the default history)")
+    p.add_argument("--history", default=None,
+                   help="history JSON to recompute (default: the config's current-spec history)")
     p.add_argument("--output", default=None,
-                   help="write the result here instead of overwriting --input")
+                   help="write the result here instead of overwriting the input history")
     p.add_argument("--force", action="store_true",
-                   help="recompute every record, not just ones with a stale loss_config")
+                   help="recompute every scored record, not just ones with a stale loss_config")
     args = p.parse_args()
 
-    if args.input:
-        history_path = Path(args.input)
-        output_dir = Path(args.output_dir) if args.output_dir else history_path.parent
-        recompute(history_path, output_dir,
-                  Path(args.output) if args.output else None, force=args.force)
-        return
+    cfg = configure(load_config(args.config))
+    history_path = Path(args.history) if args.history else cfg.history_path
+    if not history_path.exists():
+        sys.exit(f"[recompute] no history at {history_path}")
 
-    dirs = args.dirs or [os.environ.get(
-        "OPTIMIZE_MAPS_DIR", f"/flare/Abacus/{os.environ.get('USER', '')}/Tuning")]
-    for d in dirs:
-        d = Path(d)
-        recompute(d / "optimize_maps_history.json", d, force=args.force)
+    target = reference_target()
+    history = History(history_path)
+    history.refresh_stale(target, force=args.force,
+                          out_path=Path(args.output) if args.output else history_path)
 
 
 if __name__ == "__main__":
